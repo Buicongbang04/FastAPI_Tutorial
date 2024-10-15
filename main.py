@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel
@@ -48,11 +48,11 @@ async def get_food(food_name: FoodEnum):
         return {"Food Name": food_name,
                 "Message": "Dairy products are good for health"}
 
-fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"}]
+# fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"}]
 
-@app.get("/items")
-async def list_items(skip: int = 0, limit: int = 10):
-    return fake_items_db[skip : skip + limit]
+# @app.get("/items")
+# async def list_items(skip: int = 0, limit: int = 10):
+#     return fake_items_db[skip : skip + limit]
 
 @app.get("/items/{item_id}")
 async def get_item(item_id: int, sample_query_param: str, q: Optional[str] = None, short: bool = False):
@@ -80,7 +80,7 @@ class Item(BaseModel):
 
 
 @app.post("/items")
-async def create_item(item: Item):
+async def create_item(item: Item) -> Item:
     item_dict = item.model_dump()
     if item.tax:
         total_price = item.price + item.tax
@@ -93,3 +93,25 @@ async def create_item_with_put(item_id: int, item: Item, q: str | None = None):
     if q:
         result.update({"q": q})
     return result
+
+@app.get("/items")
+async def read_item(q: str | None = Query(..., # use '...' to make it required but dont have default
+                                        min_length=1, 
+                                        max_length=10, 
+                                        regex='^[a-zA-Z]*$',
+                                        title="Sample query string",
+                                        description="This is a sample")): 
+    res = {'items': [{'item_id': 'Foo'}, {'item_id': 'Bar'}]}
+    if q:
+        res.update({"q": q})
+    return res
+
+@app.get("/items/hidden")
+async def hidden_query_route(hidden_query: str |
+                        None = Query(..., 
+                                    title="Hidden query",
+                                    description="This query is hidden and not shown in the docs",
+                                    include_in_schema=False)):
+    if hidden_query:
+        return {"hidden_query": hidden_query}
+    return {"hidden_query": "No hidden query parameter"}
